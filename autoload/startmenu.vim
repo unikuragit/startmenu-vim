@@ -6,6 +6,10 @@ function! s:expand_menu()
   endif
   let start_folder = matchstr(filter(split(system('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"'), "\n"), "v:val =~ '^\\s*Start Menu\\s'")[0], '\sREG_SZ\s\+\zs.*')
   let common_start_folder = matchstr(filter(split(system('reg query "HKLM\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"'), "\n"), "v:val =~ '^\\s*Common Start Menu\\s'")[0], '\sREG_SZ\s\+\zs.*')
+  if has('win32unix')
+    let start_folder = substitute(split(escape(system('cygpath ''' . start_folder . ''''), ' '), "\n")[0], "\r", '', '')
+    let common_start_folder = substitute(split(escape(system('cygpath ''' . common_start_folder . ''''), ' '), "\n")[0], "\r", '', '')
+  endif
   let s:menu += split(globpath(start_folder, '**/*.lnk'), "\n")
   let s:menu += split(globpath(common_start_folder, '**/*.lnk'), "\n")
 endfunction
@@ -44,7 +48,12 @@ function! startmenu#execute(name)
   call s:expand_menu()
   let item = filter(copy(s:menu), "stridx(v:val, a:name . '.lnk') == len(v:val)-len(a:name)-4")
   if len(item) > 0
-    silent! exe '!start explorer ' . item[0]
+    if has('win32unix')
+      silent! exe '!cygstart explorer `cygpath -w ' . item[0] . '`'
+      redraw!
+    else
+      silent! exe '!start explorer ' . item[0]
+    endif
 	return 1
   endif
   return 0
